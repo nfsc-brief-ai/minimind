@@ -14,8 +14,8 @@ import json
 import random
 import time
 import argparse
+import boto3
 from pathlib import Path
-import anthropic
 
 SYSTEM_PROMPT = """你是一个专业的中文训练数据生成助手。
 我会给你一段中文文本，请根据文本内容生成2到3个高质量的问答对。
@@ -36,21 +36,23 @@ SYSTEM_PROMPT = """你是一个专业的中文训练数据生成助手。
 ]"""
 
 
-def generate_qa_pairs(client: anthropic.AnthropicBedrock, text: str, model: str) -> list[dict]:
-    """Call Claude to generate Q&A pairs from a text chunk."""
+def generate_qa_pairs(client, text: str, model: str) -> list[dict]:
+    """Call Claude via Bedrock to generate Q&A pairs from a text chunk."""
     try:
-        response = client.messages.create(
-            model=model,
-            max_tokens=800,
-            messages=[
+        body = json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 800,
+            "system": SYSTEM_PROMPT,
+            "messages": [
                 {
                     "role": "user",
                     "content": f"请根据以下文本生成问答对：\n\n{text}"
                 }
             ],
-            system=SYSTEM_PROMPT,
-        )
-        content = response.content[0].text.strip()
+        })
+        response = client.invoke_model(modelId=model, body=body)
+        result = json.loads(response["body"].read())
+        content = result["content"][0]["text"].strip()
         # Strip markdown code fences if present
         if content.startswith("```"):
             content = content.split("```")[1]
@@ -81,12 +83,11 @@ def main():
     parser.add_argument("--min-chars", type=int, default=150, help="跳过太短的块")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--region", default="us-east-1", help="AWS 区域")
-    parser.add_argument("--model", default="anthropic.claude-haiku-4-5-20251001-v1:0",
+    parser.add_argument("--model", default="us.anthropic.claude-haiku-4-5-20251001-v1:0",
                         help="Bedrock 模型 ID")
     args = parser.parse_args()
 
-    # 使用 AWS Bedrock，认证自动走 ~/.aws/credentials 或 IAM Role
-    client = anthropic.AnthropicBedrock(aws_region=args.region)
+    client = boto3.client("bedrock-runtime", region_name=args.region)
 
     # 读取语料
     print(f"读取语料: {args.input}")
