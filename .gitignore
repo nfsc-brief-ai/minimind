@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.DS_Store
+out/
+website/
+docs-minimind/
+.venv/
+
+# 大数据集文件
+dataset/*.jsonl
+pretrain_corpus.jsonl
+
+# 模型权重和检查点
+checkpoints/
+minimind-3/model.safetensors
