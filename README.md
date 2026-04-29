@@ -25,6 +25,12 @@
   <h3>"大道至简"</h3>
 </div>
 
+---
+
+> **本仓库是 [minimind](https://github.com/jingyaogong/minimind) 的个人分支。**
+>
+> 感谢原项目作者及所有贡献者的付出，minimind 是一个优秀的开源项目，让更多人能够从零理解和训练大语言模型。本分支在此基础上进行个人定制和实验。
+
 <div align="center">
 
 中文 | [English](./README_en.md)
