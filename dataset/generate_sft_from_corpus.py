@@ -36,11 +36,11 @@ SYSTEM_PROMPT = """你是一个专业的中文训练数据生成助手。
 ]"""
 
 
-def generate_qa_pairs(client: anthropic.Anthropic, text: str) -> list[dict]:
+def generate_qa_pairs(client: anthropic.AnthropicBedrock, text: str, model: str) -> list[dict]:
     """Call Claude to generate Q&A pairs from a text chunk."""
     try:
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=model,
             max_tokens=800,
             messages=[
                 {
@@ -80,9 +80,13 @@ def main():
     parser.add_argument("--samples", type=int, default=800, help="从语料中随机抽取多少块")
     parser.add_argument("--min-chars", type=int, default=150, help="跳过太短的块")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--region", default="us-east-1", help="AWS 区域")
+    parser.add_argument("--model", default="anthropic.claude-haiku-4-5-20251001-v1:0",
+                        help="Bedrock 模型 ID")
     args = parser.parse_args()
 
-    client = anthropic.Anthropic()  # 读取 ANTHROPIC_API_KEY 环境变量
+    # 使用 AWS Bedrock，认证自动走 ~/.aws/credentials 或 IAM Role
+    client = anthropic.AnthropicBedrock(aws_region=args.region)
 
     # 读取语料
     print(f"读取语料: {args.input}")
@@ -102,7 +106,7 @@ def main():
     with out_path.open("w", encoding="utf-8") as fout:
         for i, chunk in enumerate(selected, 1):
             print(f"[{i}/{len(selected)}] 生成中...", end=" ", flush=True)
-            pairs = generate_qa_pairs(client, chunk[:600])  # 最多600字送给API
+            pairs = generate_qa_pairs(client, chunk[:600], args.model)  # 最多600字送给API
             for q, a in pairs:
                 fout.write(json.dumps(to_sft_record(q, a), ensure_ascii=False) + "\n")
             total += len(pairs)
