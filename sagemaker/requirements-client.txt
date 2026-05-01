@@ -1,0 +1,12 @@
+# Minimal Python deps for running SageMaker *client* scripts from your machine only:
+#   submit_pretrain.py, training_job_status.py, upload_train_data.py
+#
+# Training still runs in the SageMaker container; you do not need torch/transformers here.
+#
+# Suggested venv *outside* the repo (keeps source uploads small):
+#   bash sagemaker/setup_client_venv.sh
+#   source ~/.venvs/minimind-sagemaker/bin/activate
+#
+# Or: python3 -m venv ~/.venvs/minimind-sagemaker && ~/.venvs/minimind-sagemaker/bin/pip install -r sagemaker/requirements-client.txt
+
+sagemaker>=2.200,<3
