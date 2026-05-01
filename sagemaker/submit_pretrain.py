@@ -8,7 +8,13 @@ from __future__ import annotations
 import argparse
 import shutil
 import tempfile
+from datetime import datetime
 from pathlib import Path
+
+
+def _log(msg: str) -> None:
+    ts = datetime.now().strftime("%H:%M:%S")
+    print(f"[{ts}] {msg}", flush=True)
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _SAGEMAKER_DIR = Path(__file__).resolve().parent
@@ -29,6 +35,7 @@ def _touch(p: Path) -> None:
 
 def _build_pretrain_bundle(repo_root: Path, dest: Path) -> None:
     """Only files needed for train_pretrain: no full repo, no .venv."""
+    _log("Building training bundle (trainer, dataset, model, entrypoint)...")
     if dest.exists():
         shutil.rmtree(dest)
     dest.mkdir(parents=True)
@@ -63,6 +70,7 @@ def _build_pretrain_bundle(repo_root: Path, dest: Path) -> None:
 
     shutil.copy2(entry, dest / "entrypoint_pretrain.py")
     shutil.copy2(req, dest / "requirements-training.txt")
+    _log(f"Training bundle ready at {dest}")
 
 
 def main() -> None:
@@ -78,17 +86,26 @@ def main() -> None:
 
     _validate_training_role_arn(args.role_arn)
 
+    _log(
+        "Starting submit: "
+        f"instance={args.instance_type}, train={args.s3_train_uri!r}, "
+        f"region={args.region or '(default)'}, profile={args.profile or '(default)'}, "
+        f"wait={not args.no_wait}"
+    )
+
+    _log("Importing boto3 / SageMaker SDK (cold start can take a few seconds)...")
     import boto3
     import sagemaker
     from sagemaker.pytorch import PyTorch
 
     boto_sess = boto3.Session(region_name=args.region, profile_name=args.profile)
     sess = sagemaker.Session(boto_session=boto_sess)
+    _log(f"SageMaker session ready (boto region={sess.boto_region_name}).")
 
     tmp = Path(tempfile.mkdtemp(prefix="minimind-smbundle-"))
     try:
         _build_pretrain_bundle(_REPO_ROOT, tmp)
-        print(f"Bundle ready → uploading ({tmp})", flush=True)
+        _log("Creating PyTorch estimator (packaging source for SageMaker)...")
 
         estimator = PyTorch(
             entry_point="entrypoint_pretrain.py",
@@ -119,14 +136,25 @@ def main() -> None:
                 "log_interval": 100,
             },
         )
+        _log(
+            "Calling fit(): uploading tarball to S3 and registering the training job "
+            "(no console output until upload finishes — often 1–3 minutes)..."
+        )
+        if args.no_wait:
+            _log("wait=False: returning right after the job is queued (no log streaming).")
+        else:
+            _log(
+                "wait=True: after the upload, SageMaker streams training logs here until the job ends."
+            )
         estimator.fit(
             inputs={"train": args.s3_train_uri},
             job_name=args.job_name,
             wait=not args.no_wait,
         )
         if estimator.latest_training_job:
-            print(f"Job: {estimator.latest_training_job.name}", flush=True)
+            _log(f"Job name: {estimator.latest_training_job.name}")
     finally:
+        _log(f"Removing temp bundle {tmp}")
         shutil.rmtree(tmp, ignore_errors=True)
 
 
