@@ -1,3 +1,0 @@
-# Client-side SageMaker SDK (same as requirements-client.txt).
-# Kept for backward compatibility with docs that reference this filename.
--r requirements-client.txt

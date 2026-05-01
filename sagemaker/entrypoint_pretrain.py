@@ -7,6 +7,21 @@ import sys
 from pathlib import Path
 
 
+def _install_training_requirements() -> None:
+    """Pip install from requirements-training.txt when present (minimal SageMaker bundle)."""
+    code_root = Path(__file__).resolve().parent
+    req = code_root / "requirements-training.txt"
+    if not req.is_file():
+        return
+    print("pip install -r requirements-training.txt (container env)", flush=True)
+    env = {**os.environ, "PIP_DISABLE_PIP_VERSION_CHECK": "1"}
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-r", str(req)],
+        check=True,
+        env=env,
+    )
+
+
 def _env(name: str, default: str | None = None) -> str | None:
     v = os.environ.get(name)
     return v if v not in (None, "") else default
@@ -36,6 +51,8 @@ def _pick_data_path(train_dir: str, data_file: str | None) -> str:
 
 
 def main() -> int:
+    _install_training_requirements()
+
     parser = argparse.ArgumentParser(description="SageMaker entrypoint for MiniMind pretrain (single-node multi-GPU)")
 
     # SageMaker convention: /opt/ml/input/data/<channel_name>

@@ -1,0 +1,6 @@
+# Installed on the SageMaker training instance before train starts (see entrypoint_pretrain.py).
+# PyTorch / CUDA stack comes from the official SageMaker PyTorch container — do not pin torch here.
+datasets>=3.6.0,<4
+transformers>=4.57.0,<5
+numpy>=1.26.0,<3
+jsonlines>=4.0.0,<5
